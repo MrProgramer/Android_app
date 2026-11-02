@@ -29,7 +29,7 @@ class AppTheme {
           color: AppColors.textMainLight,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.cardLight,
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -91,7 +91,7 @@ class AppTheme {
           color: AppColors.textMainDark,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.cardDark,
         elevation: 0,
         margin: EdgeInsets.zero,

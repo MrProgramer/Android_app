@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_icons.dart';
 import '../theme/app_colors.dart';
 import 'dashboard_screen.dart';
 import 'invoices_screen.dart';

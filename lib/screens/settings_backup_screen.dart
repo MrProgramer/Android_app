@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_icons.dart';
+import '../models/settings.dart';
 import '../services/storage_service.dart';
 import '../services/backup_sync_service.dart';
 import '../theme/app_colors.dart';

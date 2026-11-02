@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import '../theme/app_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../models/product.dart';
 import '../services/storage_service.dart';
