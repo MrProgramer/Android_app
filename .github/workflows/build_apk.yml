@@ -32,6 +32,7 @@ jobs:
           fi
           rm -rf android
           flutter create . --platforms=android --org com.bazargani --project-name mycrm_mobile
+          rm -rf test
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
 
