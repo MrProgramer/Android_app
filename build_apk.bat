@@ -16,6 +16,12 @@ if exist "test" (
     rmdir /s /q test
 )
 
+echo تنظیم AndroidX...
+if exist "android\gradle.properties" (
+    echo android.useAndroidX=true >> android\gradle.properties
+    echo android.enableJetifier=true >> android\gradle.properties
+)
+
 echo دریافت پکیج‌های فلاتر...
 call flutter pub get
 if %errorlevel% neq 0 (
