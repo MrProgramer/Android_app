@@ -1,0 +1,37 @@
+name: mycrm_mobile
+description: "سامانه هوشمند مدیریت بازرگانی و انبارداری (نسخه اندروید کاملاً آفلاین)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # Offline local persistence
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.2
+  # File picking and sharing for offline JSON import/export
+  file_picker: ^8.0.0
+  share_plus: ^9.0.0
+  # Persian Jalali Calendar
+  shamsi_date: ^1.0.4
+  # Formatting & Utilities
+  intl: ^0.19.0
+  uuid: ^4.3.3
+  # Modern Flat UI icons
+  lucide_icons: ^0.257.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/fonts/
+    - assets/icons/
