@@ -15,8 +15,8 @@ dependencies:
   shared_preferences: ^2.2.2
   path_provider: ^2.1.2
   # File picking and sharing for offline JSON import/export
-  file_picker: ^8.0.0
-  share_plus: ^9.0.0
+  file_picker: '>=8.0.0 <14.0.0'
+  share_plus: '>=9.0.0 <14.0.0'
   # Persian Jalali Calendar
   shamsi_date: ^1.0.4
   # Formatting & Utilities

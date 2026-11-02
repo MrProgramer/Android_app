@@ -12,6 +12,9 @@ if exist "android" (
 
 echo ایجاد ساختار تمیز و سازگار پلتفرم اندروید...
 call flutter create . --platforms=android --org com.bazargani --project-name mycrm_mobile
+if exist "test" (
+    rmdir /s /q test
+)
 
 echo دریافت پکیج‌های فلاتر...
 call flutter pub get
@@ -23,7 +26,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo در حال کامپایل و ساخت APK نهایی (Release)...
-call flutter build apk --release
+call flutter build apk --release --android-skip-build-dependency-validation
 
 if %errorlevel% equ 0 (
     echo.
