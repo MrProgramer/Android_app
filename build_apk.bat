@@ -5,8 +5,13 @@ echo   در حال آماده‌سازی و بیلد فایل APK اندروید
 echo ========================================================
 echo.
 
-echo بررسی و ایجاد ساختار پلتفرم اندروید...
-call flutter create . --platforms=android --org com.bazargani
+if exist "android" (
+    echo پاک‌سازی ساختار قبلی برای جلوگیری از تداخل فایل‌های گریدل...
+    rmdir /s /q android
+)
+
+echo ایجاد ساختار تمیز و سازگار پلتفرم اندروید...
+call flutter create . --platforms=android --org com.bazargani --project-name mycrm_mobile
 
 echo دریافت پکیج‌های فلاتر...
 call flutter pub get
