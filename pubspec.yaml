@@ -20,7 +20,7 @@ dependencies:
   # Persian Jalali Calendar
   shamsi_date: ^1.0.4
   # Formatting & Utilities
-  intl: ^0.19.0
+  intl: '>=0.19.0 <1.0.0'
   uuid: ^4.3.3
   # Modern Flat UI icons
   lucide_icons: ^0.257.0
@@ -32,6 +32,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/fonts/
-    - assets/icons/

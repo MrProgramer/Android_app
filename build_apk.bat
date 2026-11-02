@@ -1,20 +1,24 @@
 @echo off
 chcp 65001 > nul
 echo ========================================================
-echo   در حال دریافت پکیج‌ها و بیلد فایل APK اندروید...
+echo   در حال آماده‌سازی و بیلد فایل APK اندروید...
 echo ========================================================
 echo.
 
-flutter pub get
+echo بررسی و ایجاد ساختار پلتفرم اندروید...
+call flutter create . --platforms=android --org com.bazargani
+
+echo دریافت پکیج‌های فلاتر...
+call flutter pub get
 if %errorlevel% neq 0 (
-    echo [خطا] دریافت پکیج‌های فلاتر با خطا مواجه شد. لطفاً از نصب بودن Flutter اطمینان حاصل فرمایید.
+    echo [خطا] دریافت پکیج‌های فلاتر با خطا مواجه شد.
     pause
     exit /b %errorlevel%
 )
 
 echo.
 echo در حال کامپایل و ساخت APK نهایی (Release)...
-flutter build apk --release
+call flutter build apk --release
 
 if %errorlevel% equ 0 (
     echo.
@@ -22,7 +26,9 @@ if %errorlevel% equ 0 (
     echo   [موفقیت] فایل APK نهایی با موفقیت ساخته شد:
     echo   build\app\outputs\flutter-apk\app-release.apk
     echo ========================================================
-    explorer build\app\outputs\flutter-apk
+    if exist "build\app\outputs\flutter-apk" (
+        explorer build\app\outputs\flutter-apk
+    )
 ) else (
     echo.
     echo [خطا] ساخت فایل APK با خطا مواجه شد.
