@@ -30,7 +30,8 @@ jobs:
           if [ -d "android_app" ]; then
             cd android_app
           fi
-          flutter create . --platforms=android --org com.bazargani
+          rm -rf android
+          flutter create . --platforms=android --org com.bazargani --project-name mycrm_mobile
           flutter pub get
           flutter build apk --release
 
