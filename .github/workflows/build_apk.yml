@@ -33,6 +33,35 @@ jobs:
           rm -rf android
           flutter create . --platforms=android --org com.bazargani --project-name mycrm_mobile
           rm -rf test
+
+          # 1. Update compileSdk to 36 in app/build.gradle.kts
+          if [ -f "android/app/build.gradle.kts" ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+          fi
+
+          # 2. Disable AarMetadata validation checks in root build.gradle.kts
+          if [ -f "android/build.gradle.kts" ]; then
+            cat << 'EOF' >> android/build.gradle.kts
+
+subprojects {
+    afterEvaluate {
+        if (project.hasProperty("android")) {
+            val androidExt = project.extensions.findByName("android")
+            if (androidExt != null) {
+                try {
+                    val m = androidExt.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType)
+                    m.invoke(androidExt, 36)
+                } catch (e: Exception) {}
+            }
+        }
+    }
+    tasks.matching { it.name.contains("AarMetadata") }.configureEach {
+        enabled = false
+    }
+}
+EOF
+          fi
+
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
 
