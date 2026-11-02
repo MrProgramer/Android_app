@@ -30,6 +30,7 @@ jobs:
           if [ -d "android_app" ]; then
             cd android_app
           fi
+          flutter create . --platforms=android --org com.bazargani
           flutter pub get
           flutter build apk --release
 
