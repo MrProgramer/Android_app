@@ -25,21 +25,23 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Prepare Android Project
-        run: |
-          if [ -f "./build_setup.sh" ]; then
-            chmod +x ./build_setup.sh
-            ./build_setup.sh
-          elif [ -f "./android_app/build_setup.sh" ]; then
-            chmod +x ./android_app/build_setup.sh
-            ./android_app/build_setup.sh
-          fi
-
       - name: Build Release APK
         run: |
           if [ -d "android_app" ]; then
             cd android_app
           fi
+
+          rm -rf android test
+          flutter create . --platforms=android --org com.bazargani --project-name mycrm_mobile
+          rm -rf test
+
+          echo "android.useAndroidX=true" >> android/gradle.properties
+          echo "android.enableJetifier=true" >> android/gradle.properties
+
+          if [ -f "android/app/build.gradle.kts" ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+          fi
+
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
 
