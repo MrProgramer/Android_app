@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_icons.dart';
@@ -34,7 +35,6 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
   final TextEditingController _jsonPasteController = TextEditingController();
 
   bool _isExporting = false;
-  bool _isImporting = false;
 
   @override
   void initState() {
@@ -89,22 +89,153 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
     }
   }
 
-  void _handleImportFile() async {
-    setState(() => _isImporting = true);
-    final res = await syncService.pickAndImportFile();
-    setState(() => _isImporting = false);
+  void _showImportOptions() async {
+    final savedBackups = await syncService.getSavedBackupFiles();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res.message),
-          backgroundColor: res.success ? AppColors.emerald : AppColors.rose,
-        ),
-      );
-      if (res.success) {
-        setState(() {});
-      }
-    }
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : AppColors.cardLight,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'وارد کردن دیتابیس (Import)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Option 1: Fast paste from clipboard
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(LucideIcons.clipboardPaste, color: AppColors.primaryDark),
+                ),
+                title: const Text('چسباندن متن JSON از کلیپ‌بورد', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                subtitle: const Text('متن فایل بکاپ وب را کپی کرده و اینجا لمس کنید', style: TextStyle(fontSize: 11)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final data = await Clipboard.getData('text/plain');
+                  final text = data?.text?.trim() ?? '';
+                  if (text.isEmpty) {
+                    _showPasteJsonDialog();
+                  } else {
+                    final res = await syncService.importDatabaseFromJsonString(text);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(res.message),
+                          backgroundColor: res.success ? AppColors.emerald : AppColors.rose,
+                        ),
+                      );
+                      if (res.success) setState(() {});
+                    }
+                  }
+                },
+              ),
+              const Divider(),
+              // Option 2: Enter manually in text box
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.blueSurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(LucideIcons.edit3, color: AppColors.blue),
+                ),
+                title: const Text('ورود دستی متن JSON', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                subtitle: const Text('مشاهده و ویرایش متن پیش از وارد کردن به سیستم', style: TextStyle(fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showPasteJsonDialog();
+                },
+              ),
+              if (savedBackups.isNotEmpty) ...[
+                const Divider(),
+                const SizedBox(height: 8),
+                const Text(
+                  'نسخه‌های پشتیبان ذخیره‌شده در گوشی:',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.3),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: savedBackups.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 6),
+                    itemBuilder: (context, idx) {
+                      final b = savedBackups[idx];
+                      return FlatCard(
+                        padding: const EdgeInsets.all(10),
+                        onTap: () async {
+                          Navigator.pop(ctx);
+                          final res = await syncService.importDatabaseFromFile(File(b.path));
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(res.message),
+                                backgroundColor: res.success ? AppColors.emerald : AppColors.rose,
+                              ),
+                            );
+                            if (res.success) setState(() {});
+                          }
+                        },
+                        child: Row(
+                          children: [
+                            const Icon(LucideIcons.fileText, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(b.fileName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  Text(
+                                    'حجم: ${PersianFormatter.toPersianDigits((b.sizeBytes / 1024).toStringAsFixed(1))} کیلوبایت',
+                                    style: TextStyle(fontSize: 10, color: isDark ? AppColors.textMutedDark : AppColors.textMutedLight),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(LucideIcons.repeat, size: 16, color: AppColors.primary),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _handleCopyJson() {
@@ -287,10 +418,8 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: _isImporting ? null : _handleImportFile,
-                    icon: _isImporting
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(LucideIcons.downloadCloud, size: 18),
+                    onPressed: _showImportOptions,
+                    icon: const Icon(LucideIcons.downloadCloud, size: 18),
                     label: const Text(
                       'وارد کردن فایل پشتیبان از وب به گوشی (Import JSON)',
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),

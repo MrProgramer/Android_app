@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'storage_service.dart';
@@ -23,6 +22,20 @@ class BackupSyncResult {
     this.productsCount = 0,
     this.invoicesCount = 0,
     this.customersCount = 0,
+  });
+}
+
+class BackupFileInfo {
+  final String path;
+  final String fileName;
+  final int sizeBytes;
+  final DateTime modifiedAt;
+
+  BackupFileInfo({
+    required this.path,
+    required this.fileName,
+    required this.sizeBytes,
+    required this.modifiedAt,
   });
 }
 
@@ -65,7 +78,17 @@ class BackupSyncService {
     return const JsonEncoder.withIndent('  ').convert(exportBundle);
   }
 
-  /// Export database to a local file and trigger system share sheet (Send via Bluetooth, Telegram, Save to Downloads, etc.)
+  /// Get directory where backups are stored locally
+  Future<Directory> _getBackupDirectory() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final backupDir = Directory('${docsDir.path}/backups');
+    if (!await backupDir.exists()) {
+      await backupDir.create(recursive: true);
+    }
+    return backupDir;
+  }
+
+  /// Export database to a local file and trigger system share sheet
   Future<BackupSyncResult> exportDatabaseAndShare() async {
     try {
       final jsonStr = generateExportJson();
@@ -73,16 +96,22 @@ class BackupSyncService {
       final timeStr = PersianDateHelper.getCurrentTime().replaceAll(':', '');
       final fileName = 'bazargani-backup-$dateStr-$timeStr.json';
 
-      final tempDir = await getTemporaryDirectory();
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsString(jsonStr, encoding: utf8);
+      // 1. Save copy in persistent local backup directory
+      final backupDir = await _getBackupDirectory();
+      final savedFile = File('${backupDir.path}/$fileName');
+      await savedFile.writeAsString(jsonStr, encoding: utf8);
 
-      final xFile = XFile(file.path, mimeType: 'application/json', name: fileName);
+      // 2. Save in temp directory and share
+      final tempDir = await getTemporaryDirectory();
+      final shareFile = File('${tempDir.path}/$fileName');
+      await shareFile.writeAsString(jsonStr, encoding: utf8);
+
+      final xFile = XFile(shareFile.path, mimeType: 'application/json', name: fileName);
       await Share.shareXFiles([xFile], text: 'فایل پشتیبان دیتابیس بازرگانی و انبارداری (سازگار با نسخه وب)');
 
       return BackupSyncResult(
         success: true,
-        message: 'فایل پشتیبان با موفقیت استخراج گردید.',
+        message: 'فایل پشتیبان استخراج شد و در بخش پشتیبان‌های گوشی ذخیره گردید.',
         productsCount: storage.products.length,
         invoicesCount: storage.invoices.length,
         customersCount: storage.customers.length,
@@ -95,7 +124,45 @@ class BackupSyncService {
     }
   }
 
-  /// Import database from a JSON string (received from web app backup file or user pick)
+  /// Retrieve all locally saved backup files
+  Future<List<BackupFileInfo>> getSavedBackupFiles() async {
+    try {
+      final backupDir = await _getBackupDirectory();
+      final files = backupDir.listSync().whereType<File>().where((f) => f.path.endsWith('.json')).toList();
+
+      final List<BackupFileInfo> list = [];
+      for (final f in files) {
+        final stat = f.statSync();
+        final name = f.path.split(Platform.pathSeparator).last;
+        list.add(BackupFileInfo(
+          path: f.path,
+          fileName: name,
+          sizeBytes: stat.size,
+          modifiedAt: stat.modified,
+        ));
+      }
+
+      list.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
+      return list;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Import database from a specific local file
+  Future<BackupSyncResult> importDatabaseFromFile(File file) async {
+    try {
+      final content = await file.readAsString(encoding: utf8);
+      return await importDatabaseFromJsonString(content);
+    } catch (e) {
+      return BackupSyncResult(
+        success: false,
+        message: 'خطا در خواندن فایل پشتیبان: $e',
+      );
+    }
+  }
+
+  /// Import database from a JSON string
   Future<BackupSyncResult> importDatabaseFromJsonString(String jsonContent) async {
     try {
       final dynamic decoded = jsonDecode(jsonContent);
@@ -179,30 +246,7 @@ class BackupSyncService {
     } catch (e) {
       return BackupSyncResult(
         success: false,
-        message: 'خطا در پردازش فایل پشتیبان: $e',
-      );
-    }
-  }
-
-  /// Pick a JSON file from device storage and import it
-  Future<BackupSyncResult> pickAndImportFile() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-
-      if (result == null || result.files.isEmpty) {
-        return BackupSyncResult(success: false, message: 'هیچ فایلی انتخاب نشد.');
-      }
-
-      final file = File(result.files.single.path!);
-      final content = await file.readAsString(encoding: utf8);
-      return await importDatabaseFromJsonString(content);
-    } catch (e) {
-      return BackupSyncResult(
-        success: false,
-        message: 'خطا در باز کردن فایل: $e',
+        message: 'خطا در پردازش داده‌های پشتیبان: $e',
       );
     }
   }
