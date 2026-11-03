@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'storage_service.dart';
@@ -41,6 +42,23 @@ class BackupFileInfo {
 
 class BackupSyncService {
   final StorageService storage = StorageService();
+  static const MethodChannel _nativeChannel = MethodChannel('com.bazargani.mycrm/native_file_picker');
+
+  /// Pick a JSON backup file directly from Android's native file manager
+  Future<BackupSyncResult> pickFileWithNativeFileManager() async {
+    try {
+      final jsonString = await _nativeChannel.invokeMethod<String>('pickJsonFile');
+      if (jsonString == null || jsonString.trim().isEmpty) {
+        return BackupSyncResult(success: false, message: 'هیچ فایلی انتخاب نشد.');
+      }
+      return await importDatabaseFromJsonString(jsonString);
+    } catch (e) {
+      return BackupSyncResult(
+        success: false,
+        message: 'خطا در انتخاب فایل از فایل‌منیجر: $e',
+      );
+    }
+  }
 
   /// Export current database to a 100% web-compatible JSON string
   String generateExportJson() {

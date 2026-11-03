@@ -16,6 +16,11 @@ if exist "test" (
     rmdir /s /q test
 )
 
+if exist "android_custom\MainActivity.kt" (
+    echo تزریق فایل‌منیجر بومی اندروید...
+    copy /Y "android_custom\MainActivity.kt" "android\app\src\main\kotlin\com\bazargani\mycrm_mobile\MainActivity.kt"
+)
+
 echo تنظیم AndroidX...
 if exist "android\gradle.properties" (
     echo android.useAndroidX=true >> android\gradle.properties

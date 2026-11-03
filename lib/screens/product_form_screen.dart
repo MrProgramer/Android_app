@@ -6,6 +6,8 @@ import '../services/storage_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/persian_formatter.dart';
 import '../widgets/flat_card.dart';
+import '../widgets/smart_price_input.dart';
+import '../widgets/custom_badge.dart';
 
 class ProductFormScreen extends StatefulWidget {
   final Product? productToEdit;
@@ -21,6 +23,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   final StorageService storage = StorageService();
 
   late TextEditingController _nameController;
+  late TextEditingController _codeController;
   late TextEditingController _categoryController;
   late TextEditingController _purchasePriceController;
   late TextEditingController _sellingPriceController;
@@ -28,8 +31,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   late TextEditingController _piecesPerCartonController;
   late TextEditingController _packsPerCartonController;
   late TextEditingController _piecesPerPackController;
+  late TextEditingController _leavesPerPieceController;
   late TextEditingController _stockPiecesController;
   late TextEditingController _unitTitleController;
+  late TextEditingController _barcodeController;
   late TextEditingController _notesController;
 
   bool _isUnpackaged = false;
@@ -39,12 +44,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     super.initState();
     final p = widget.productToEdit;
     _nameController = TextEditingController(text: p?.name ?? '');
+    _codeController = TextEditingController(text: p?.code ?? '');
     _categoryController = TextEditingController(text: p?.category ?? 'عمومی');
     _purchasePriceController = TextEditingController(
-      text: p != null ? PersianFormatter.formatPrice(p.purchasePrice, includeUnit: false) : '',
+      text: p != null && p.purchasePrice > 0 ? PersianFormatter.formatPrice(p.purchasePrice, includeUnit: false) : '',
     );
     _sellingPriceController = TextEditingController(
-      text: p != null ? PersianFormatter.formatPrice(p.sellingPrice, includeUnit: false) : '',
+      text: p != null && p.sellingPrice > 0 ? PersianFormatter.formatPrice(p.sellingPrice, includeUnit: false) : '',
     );
     _coverPriceController = TextEditingController(
       text: (p?.coverPrice != null && p!.coverPrice! > 0)
@@ -60,10 +66,14 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _piecesPerPackController = TextEditingController(
       text: p?.piecesPerPack != null ? p!.piecesPerPack.toString() : '',
     );
+    _leavesPerPieceController = TextEditingController(
+      text: p?.leavesPerPiece != null ? p!.leavesPerPiece.toString() : '',
+    );
     _stockPiecesController = TextEditingController(
       text: p != null ? p.stockPieces.toString() : '0',
     );
     _unitTitleController = TextEditingController(text: p?.unitTitle ?? 'عدد');
+    _barcodeController = TextEditingController(text: p?.barcode ?? '');
     _notesController = TextEditingController(text: p?.notes ?? '');
     _isUnpackaged = p?.isUnpackaged ?? false;
   }
@@ -71,6 +81,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _codeController.dispose();
     _categoryController.dispose();
     _purchasePriceController.dispose();
     _sellingPriceController.dispose();
@@ -78,10 +89,52 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     _piecesPerCartonController.dispose();
     _packsPerCartonController.dispose();
     _piecesPerPackController.dispose();
+    _leavesPerPieceController.dispose();
     _stockPiecesController.dispose();
     _unitTitleController.dispose();
+    _barcodeController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  double get profitMargin {
+    final buy = PersianFormatter.parseDouble(_purchasePriceController.text);
+    final sell = PersianFormatter.parseDouble(_sellingPriceController.text);
+    if (sell <= 0) return 0;
+    return ((sell - buy) / sell) * 100;
+  }
+
+  void _addNewCategoryDialog() {
+    final catController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('افزودن دسته‌بندی جدید', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+        content: TextField(
+          controller: catController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'نام دسته‌بندی جدید', hintText: 'مثلاً: شوینده و بهداشتی'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('انصراف')),
+          ElevatedButton(
+            onPressed: () async {
+              final newCat = catController.text.trim();
+              if (newCat.isNotEmpty) {
+                if (!storage.categories.contains(newCat)) {
+                  storage.categories.add(newCat);
+                  await storage.saveCategories();
+                }
+                setState(() => _categoryController.text = newCat);
+              }
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            child: const Text('افزودن'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _saveProduct() async {
@@ -91,6 +144,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     final effectivePpc = ppc > 0 ? ppc : 1;
     final packs = int.tryParse(_packsPerCartonController.text);
     final ppp = int.tryParse(_piecesPerPackController.text);
+    final leaves = int.tryParse(_leavesPerPieceController.text);
 
     final purchasePrice = PersianFormatter.parseDouble(_purchasePriceController.text);
     final sellingPrice = PersianFormatter.parseDouble(_sellingPriceController.text);
@@ -104,6 +158,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     final product = Product(
       id: isEditing ? widget.productToEdit!.id : 'prod-${const Uuid().v4().substring(0, 8)}',
       name: _nameController.text.trim(),
+      code: _codeController.text.trim().isEmpty ? null : _codeController.text.trim(),
       category: _categoryController.text.trim().isEmpty ? 'عمومی' : _categoryController.text.trim(),
       purchasePrice: purchasePrice,
       sellingPrice: sellingPrice,
@@ -111,8 +166,10 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
       piecesPerCarton: effectivePpc,
       packsPerCarton: packs,
       piecesPerPack: ppp,
+      leavesPerPiece: leaves,
       stockPieces: stock,
       unitTitle: _unitTitleController.text.trim().isEmpty ? 'عدد' : _unitTitleController.text.trim(),
+      barcode: _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
       notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       isUnpackaged: _isUnpackaged,
       createdAt: isEditing ? widget.productToEdit!.createdAt : DateTime.now().millisecondsSinceEpoch,
@@ -128,7 +185,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isEditing ? 'کالا با موفقیت ویرایش شد' : 'کالای جدید با موفقیت افزوده شد'),
+          content: Text(isEditing ? 'مشخصات کالا با موفقیت ویرایش شد' : 'کالای جدید به انبار افزوده شد'),
           backgroundColor: AppColors.primary,
         ),
       );
@@ -143,15 +200,15 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'ویرایش مشخصات کالا' : 'افزودن کالای جدید'),
+        title: Text(isEditing ? 'ویرایش مشخصات کالا' : 'افزودن کالای جدید به انبار'),
         actions: [
           TextButton.icon(
             onPressed: _saveProduct,
             icon: const Icon(LucideIcons.check, size: 16),
-            label: const Text('ذخیره'),
+            label: const Text('ذخیره کالا'),
             style: TextButton.styleFrom(
               foregroundColor: AppColors.primary,
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              textStyle: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
           const SizedBox(width: 8),
@@ -162,25 +219,36 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Basic Info Card
+            // 1. BASIC INFORMATION
             FlatCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'اطلاعات اصلی محصول',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'اطلاعات اصلی و عنوان کالا',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                      ),
+                      TextButton.icon(
+                        onPressed: _addNewCategoryDialog,
+                        icon: const Icon(LucideIcons.plus, size: 13),
+                        label: const Text('دسته جدید', style: TextStyle(fontSize: 11)),
+                        style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: 'نام و عنوان کالا *',
+                      labelText: 'نام و عنوان تجاری کالا *',
                       hintText: 'مثلاً: آبنبات کپل کوچک توت فرنگی',
                     ),
-                    validator: (v) => v == null || v.trim().isEmpty ? 'لطفاً نام کالا را وارد کنید' : null,
+                    validator: (v) => v == null || v.trim().isEmpty ? 'نام کالا الزامی است' : null,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
@@ -188,13 +256,13 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                         child: TextFormField(
                           controller: _categoryController,
                           decoration: const InputDecoration(
-                            labelText: 'دسته‌بندی *',
-                            hintText: 'مثلاً: آبنبات',
+                            labelText: 'دسته‌بندی کالا *',
+                            hintText: 'آبنبات، لواشک...',
                           ),
                           validator: (v) => v == null || v.trim().isEmpty ? 'دسته‌بندی الزامی است' : null,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: TextFormField(
                           controller: _unitTitleController,
@@ -206,27 +274,26 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  // Category quick select chips
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: storage.categories.map((cat) {
-                      return ActionChip(
-                        label: Text(cat, style: const TextStyle(fontSize: 11)),
-                        backgroundColor: _categoryController.text == cat
-                            ? AppColors.primarySurface
-                            : (isDark ? AppColors.cardDarkElevated : AppColors.bgLight),
-                        side: BorderSide(
-                          color: _categoryController.text == cat ? AppColors.primary : Colors.transparent,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _categoryController.text = cat;
-                          });
-                        },
-                      );
-                    }).toList(),
+                  const SizedBox(height: 8),
+                  // Quick category selection chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: storage.categories.map((cat) {
+                        final isSel = _categoryController.text == cat;
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: ActionChip(
+                            label: Text(cat, style: const TextStyle(fontSize: 11)),
+                            backgroundColor: isSel
+                                ? AppColors.primarySurface
+                                : (isDark ? AppColors.cardDarkElevated : AppColors.bgLight),
+                            side: BorderSide(color: isSel ? AppColors.primary : Colors.transparent),
+                            onPressed: () => setState(() => _categoryController.text = cat),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
                 ],
               ),
@@ -234,7 +301,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
             const SizedBox(height: 14),
 
-            // Packaging Specifications Card
+            // 2. PACKAGING SPECIFICATIONS
             FlatCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -243,8 +310,8 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'مشخصات بسته‌بندی و کارتن',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        'مشخصات کارتن و بسته‌بندی',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                       ),
                       Row(
                         children: [
@@ -258,7 +325,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   if (!_isUnpackaged) ...[
                     TextFormField(
                       controller: _piecesPerCartonController,
@@ -270,7 +337,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                       ),
                       validator: (v) => v == null || v.trim().isEmpty ? 'تعداد در کارتن الزامی است' : null,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(
@@ -283,7 +350,7 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: TextFormField(
                             controller: _piecesPerPackController,
@@ -291,6 +358,17 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                             decoration: const InputDecoration(
                               labelText: 'تعداد دانه در هر بسته',
                               hintText: 'مثلاً: ۲۰۰',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _leavesPerPieceController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'تعداد برگی (اختیاری)',
+                              hintText: 'مثلاً: ۶',
                             ),
                           ),
                         ),
@@ -303,52 +381,49 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
             const SizedBox(height: 14),
 
-            // Pricing & Margins Card
+            // 3. PRICING & MARGINS (WITH SMART PRICE INPUT & VERBAL WORDS)
             FlatCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'قیمت‌گذاری و بهای تمام‌شده (تومان)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _purchasePriceController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'قیمت خرید (تومان) *',
-                            hintText: 'مثلاً: ۴,۵۰۰',
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'قیمت خرید الزامی است' : null,
-                        ),
+                      const Text(
+                        'قیمت‌گذاری و بهای تمام‌شده',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _sellingPriceController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'قیمت فروش (تومان) *',
-                            hintText: 'مثلاً: ۵,۸۰۰',
-                          ),
-                          validator: (v) => v == null || v.trim().isEmpty ? 'قیمت فروش الزامی است' : null,
+                      if (profitMargin > 0)
+                        CustomBadge(
+                          text: 'حاشیه سود: ${PersianFormatter.toPersianDigits(profitMargin.toStringAsFixed(1))}٪',
+                          textColor: AppColors.emerald,
+                          backgroundColor: AppColors.emeraldSurface,
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
+                  SmartPriceInput(
+                    controller: _sellingPriceController,
+                    label: 'قیمت فروش واحد (تومان)',
+                    hintText: 'مثلاً: ۵,۸۰۰',
+                    isRequired: true,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  SmartPriceInput(
+                    controller: _purchasePriceController,
+                    label: 'قیمت خرید واحد (تومان)',
+                    hintText: 'مثلاً: ۴,۵۰۰',
+                    isRequired: true,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  SmartPriceInput(
                     controller: _coverPriceController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'قیمت درج‌شده روی جلد / مصرف‌کننده (اختیاری)',
-                      hintText: 'مثلاً: ۷,۰۰۰',
-                      helperText: 'جهت نمایش در فاکتور چاپی فروش',
-                    ),
+                    label: 'قیمت روی جلد / مصرف‌کننده (اختیاری)',
+                    hintText: 'مثلاً: ۷,۰۰۰',
+                    isRequired: false,
+                    onChanged: (_) => setState(() {}),
                   ),
                 ],
               ),
@@ -356,32 +431,54 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
 
             const SizedBox(height: 14),
 
-            // Stock & Inventory Card
+            // 4. STOCK & INVENTORY
             FlatCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'موجودی فعلی انبار',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
+                  const Text('موجودی انبار و شناسه', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _stockPiecesController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'موجودی کل (دانه/عدد)',
+                            hintText: 'مثلاً: ۴۰۰۰',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _codeController,
+                          decoration: const InputDecoration(
+                            labelText: 'کد کالا (اختیاری)',
+                            hintText: 'مثلاً: P-102',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   TextFormField(
-                    controller: _stockPiecesController,
+                    controller: _barcodeController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      labelText: 'تعداد کل دانه موجود در انبار',
-                      hintText: 'مثلاً: ۴۰۰۰',
-                      helperText: 'بر اساس تعداد کل دانه محاسبه می‌شود',
+                      labelText: 'بارکد کالا (اختیاری)',
+                      hintText: '۶۲۶۰۰...',
+                      prefixIcon: Icon(Icons.qr_code, size: 16),
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   TextFormField(
                     controller: _notesController,
                     maxLines: 2,
                     decoration: const InputDecoration(
-                      labelText: 'توضیحات و یادداشت (اختیاری)',
-                      hintText: 'مثلاً: برند معتبر، نگهداری در جای خشک و خنک',
+                      labelText: 'یادداشت یا شرایط نگهداری',
+                      hintText: 'مثلاً: نگهداری در جای خشک و خنک',
                     ),
                   ),
                 ],
@@ -399,8 +496,8 @@ class _ProductFormScreenState extends State<ProductFormScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: Text(
-                isEditing ? 'ثبت تغییرات کالا' : 'افزودن کالا به انبار',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                isEditing ? 'ثبت و اعمال تغییرات کالا' : 'افزودن کالا به فهرست انبار',
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
               ),
             ),
           ],

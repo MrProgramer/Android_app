@@ -124,6 +124,34 @@ class _SettingsBackupScreenState extends State<SettingsBackupScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              // Option 0: Native File Manager (Primary requested feature!)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.emeraldSurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(LucideIcons.downloadCloud, color: AppColors.emerald),
+                ),
+                title: const Text('انتخاب فایل JSON از فایل‌منیجر گوشی', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppColors.emerald)),
+                subtitle: const Text('پوشه Downloads، حافظه داخلی، تلگرام یا کارت حافظه', style: TextStyle(fontSize: 11)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final res = await syncService.pickFileWithNativeFileManager();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(res.message),
+                        backgroundColor: res.success ? AppColors.emerald : AppColors.rose,
+                      ),
+                    );
+                    if (res.success) setState(() {});
+                  }
+                },
+              ),
+              const Divider(),
               // Option 1: Fast paste from clipboard
               ListTile(
                 contentPadding: EdgeInsets.zero,
