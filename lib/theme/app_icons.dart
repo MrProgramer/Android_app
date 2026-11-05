@@ -14,6 +14,7 @@ class LucideIcons {
   static const IconData bell = Icons.notifications_none_rounded;
   static const IconData boxes = Icons.all_inbox_rounded;
   static const IconData calendar = Icons.calendar_today_outlined;
+  static const IconData camera = Icons.camera_alt_outlined;
   static const IconData check = Icons.check_rounded;
   static const IconData checkCircle = Icons.check_circle_outline_rounded;
   static const IconData chevronDown = Icons.keyboard_arrow_down_rounded;

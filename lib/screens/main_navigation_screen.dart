@@ -47,40 +47,48 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : AppColors.cardLight,
+          color: isDark ? const Color(0xFF111827) : Colors.white,
           border: Border(
             top: BorderSide(
-              color: isDark ? AppColors.borderDark : AppColors.borderLight,
+              color: isDark ? const Color(0xFF1F2937) : const Color(0xFFE5E7EB),
               width: 1,
             ),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
         child: NavigationBar(
           selectedIndex: _currentIndex,
           onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
           backgroundColor: Colors.transparent,
-          indicatorColor: AppColors.primarySurface,
+          indicatorColor: isDark ? AppColors.primarySurfaceDark : AppColors.primarySurface,
           elevation: 0,
+          height: 64,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: const [
             NavigationDestination(
               icon: Icon(LucideIcons.layoutDashboard, size: 20),
-              selectedIcon: Icon(LucideIcons.layoutDashboard, size: 20, color: AppColors.primary),
+              selectedIcon: Icon(LucideIcons.layoutDashboard, size: 21, color: AppColors.primary),
               label: 'داشبورد',
             ),
             NavigationDestination(
               icon: Icon(LucideIcons.fileText, size: 20),
-              selectedIcon: Icon(LucideIcons.fileText, size: 20, color: AppColors.primary),
+              selectedIcon: Icon(LucideIcons.fileText, size: 21, color: AppColors.primary),
               label: 'فاکتورها',
             ),
             NavigationDestination(
               icon: Icon(LucideIcons.package, size: 20),
-              selectedIcon: Icon(LucideIcons.package, size: 20, color: AppColors.primary),
+              selectedIcon: Icon(LucideIcons.package, size: 21, color: AppColors.primary),
               label: 'انبار کالا',
             ),
             NavigationDestination(
               icon: Icon(LucideIcons.settings, size: 20),
-              selectedIcon: Icon(LucideIcons.settings, size: 20, color: AppColors.primary),
+              selectedIcon: Icon(LucideIcons.settings, size: 21, color: AppColors.primary),
               label: 'تنظیمات',
             ),
           ],
